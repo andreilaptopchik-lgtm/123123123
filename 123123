@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Расширенный дашборд по работе с клиентами</title>
+    <!-- Подключение Tailwind CSS для стилизации -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Подключение Chart.js для графиков -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Подключение шрифта Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Применение шрифта Inter ко всему документу */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Более светлый фон */
+        }
+        /* Стили для улучшения внешнего вида таблицы на маленьких экранах */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        th, td {
+            white-space: nowrap;
+        }
+        /* Стили для карточек KPI */
+        .kpi-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            padding: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Расширенный аналитический дашборд</h1>
+            <p class="text-gray-600 mt-1">Анализ эффективности, конверсий и суммарных показателей</p>
+        </header>
+
+        <!-- Секция KPI карточек -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Карточка: Всего отправлено КП -->
+            <div class="kpi-card">
+                <h3 class="text-gray-500 font-medium">Всего отправлено КП</h3>
+                <p id="total-proposals" class="text-3xl font-bold text-indigo-600 mt-2">0</p>
+            </div>
+            <!-- Карточка: Всего лидов -->
+            <div class="kpi-card">
+                <h3 class="text-gray-500 font-medium">Всего лидов (CRM)</h3>
+                <p id="total-leads" class="text-3xl font-bold text-sky-600 mt-2">0</p>
+            </div>
+            <!-- Карточка: Конверсия (Лиды -> КП) -->
+            <div class="kpi-card">
+                <h3 class="text-gray-500 font-medium">Конверсия (Лиды &rarr; КП)</h3>
+                <p id="conversion-leads-to-proposals" class="text-3xl font-bold text-emerald-600 mt-2">0%</p>
+            </div>
+            <!-- Карточка: Всего звонков -->
+            <div class="kpi-card">
+                <h3 class="text-gray-500 font-medium">Всего звонков (Вход + Исход)</h3>
+                <p id="total-calls" class="text-3xl font-bold text-amber-600 mt-2">0</p>
+            </div>
+        </div>
+        
+        <!-- Секция с графиками -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <h3 class="text-lg font-semibold mb-4">Эффективность менеджеров (по отправленным КП)</h3>
+                <canvas id="managerPerformanceChart"></canvas>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <h3 class="text-lg font-semibold mb-4">Активность по дням (все звонки)</h3>
+                <canvas id="dailyActivityChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Секция со сводными таблицами -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Таблица: Суммы по дням -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <h3 class="text-lg font-semibold p-6">Суммы по дням</h3>
+                <div class="table-container">
+                    <table class="min-w-full text-sm text-left text-gray-700">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-6 py-3 font-medium">Дата</th>
+                                <th class="px-6 py-3 font-medium text-center">Лиды</th>
+                                <th class="px-6 py-3 font-medium text-center">Звонки</th>
+                                <th class="px-6 py-3 font-medium text-center">КП</th>
+                            </tr>
+                        </thead>
+                        <tbody id="daily-summary-table"></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Таблица: Суммы всего -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <h3 class="text-lg font-semibold p-6">Суммы всего</h3>
+                <div class="table-container">
+                    <table class="min-w-full text-sm text-left text-gray-700">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-6 py-3 font-medium">Показатель</th>
+                                <th class="px-6 py-3 font-medium text-center">Значение</th>
+                            </tr>
+                        </thead>
+                        <tbody id="total-summary-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Детальная таблица (оригинальная) -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <h3 class="text-lg font-semibold p-6">Детальные данные</h3>
+            <div class="table-container">
+                <table class="min-w-full text-sm text-left text-gray-700">
+                    <thead class="bg-gray-100 border-b border-gray-200">
+                        <tr>
+                            <th scope="col" class="px-6 py-4 font-semibold text-gray-900" rowspan="2">Дата</th>
+                            <th scope="col" class="px-6 py-4 font-semibold text-gray-900" rowspan="2">Менеджер</th>
+                            <th scope="col" class="px-6 py-4 font-semibold text-center text-gray-900 bg-amber-200" colspan="5">Кол-во обработанных клиентов</th>
+                            <th scope="col" class="px-6 py-4 font-semibold text-center text-gray-900 bg-rose-200" colspan="3">Эффективность расчетов</th>
+                        </tr>
+                        <tr>
+                            <th scope="col" class="px-6 py-3 font-medium bg-amber-100">Лиды CRM</th>
+                            <th scope="col" class="px-6 py-3 font-medium bg-amber-100">Вход. звонки</th>
+                            <th scope="col" class="px-6 py-3 font-medium bg-amber-100">Исход. звонки</th>
+                            <th scope="col" class="px-6 py-3 font-medium bg-amber-100">Отправлено презентаций</th>
+                            <th scope="col" class="px-6 py-3 font-medium bg-amber-100">Получено целевых клиентов</th>
+                            <th scope="col" class="px-6 py-3 font-medium bg-rose-100">Расчеты в работе</th>
+                            <th scope="col" class="px-6 py-3 font-medium bg-rose-100">Расчеты получены</th>
+                            <th scope="col" class="px-6 py-3 font-medium bg-rose-100">Отправлено КП</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table">
+                        <!-- Данные будут вставлены сюда с помощью JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <footer class="text-center mt-8 text-sm text-gray-500">
+            <p>&copy; 2025 Ваша Компания. Все права защищены.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Данные, извлеченные из изображения
+        const tableData = [
+            { date: "15.08.2025", manager: "Марія Онопко", crmLeads: 0, incomingCalls: 17, outgoingCalls: 0, presentationsSent: 0, targetClients: 0, calculationsInProgress: 2, calculationsReceived: 2, proposalsSent: 2 },
+            { date: "15.08.2025", manager: "Іван Чірняк", crmLeads: 1, incomingCalls: 52, outgoingCalls: 5, presentationsSent: 0, targetClients: 0, calculationsInProgress: 5, calculationsReceived: 3, proposalsSent: 3 },
+            { date: "18.08.2025", manager: "Владисла Ісак", crmLeads: 0, incomingCalls: 34, outgoingCalls: 3, presentationsSent: 0, targetClients: 2, calculationsInProgress: 2, calculationsReceived: 2, proposalsSent: 2 },
+            { date: "18.08.2025", manager: "Марія Онопко", crmLeads: 1, incomingCalls: 32, outgoingCalls: 5, presentationsSent: 0, targetClients: 1, calculationsInProgress: 1, calculationsReceived: 0, proposalsSent: 0 },
+            { date: "18.08.2025", manager: "Іван Чірняк", crmLeads: 2, incomingCalls: 83, outgoingCalls: 5, presentationsSent: 0, targetClients: 0, calculationsInProgress: 2, calculationsReceived: 2, proposalsSent: 2 },
+            { date: "15.08.2025", manager: "Валерія Бєлова", crmLeads: 0, incomingCalls: 0, outgoingCalls: 0, presentationsSent: 0, targetClients: 3, calculationsInProgress: 3, calculationsReceived: 3, proposalsSent: 3 },
+            { date: "19.08.2025", manager: "Владисла Ісак", crmLeads: 0, incomingCalls: 30, outgoingCalls: 2, presentationsSent: 0, targetClients: 0, calculationsInProgress: 0, calculationsReceived: 0, proposalsSent: 0 },
+            { date: "19.08.2025", manager: "Марія Онопко", crmLeads: 0, incomingCalls: 26, outgoingCalls: 4, presentationsSent: 0, targetClients: 1, calculationsInProgress: 0, calculationsReceived: 0, proposalsSent: 0 },
+            { date: "19.08.2025", manager: "Іван Чірняк", crmLeads: 0, incomingCalls: 50, outgoingCalls: 5, presentationsSent: 0, targetClients: 0, calculationsInProgress: 3, calculationsReceived: 0, proposalsSent: 0 },
+            { date: "19.08.2025", manager: "Валерія Бєлова", crmLeads: 1, incomingCalls: 24, outgoingCalls: 5, presentationsSent: 20, targetClients: 7, calculationsInProgress: 3, calculationsReceived: 2, proposalsSent: 2 },
+            { date: "19.08.2025", manager: "Денис Кича", crmLeads: 0, incomingCalls: 20, outgoingCalls: 1, presentationsSent: 20, targetClients: 1, calculationsInProgress: 0, calculationsReceived: 0, proposalsSent: 0 },
+            { date: "20.08.2025", manager: "Іван Чірняк", crmLeads: 2, incomingCalls: 27, outgoingCalls: 3, presentationsSent: 0, targetClients: 0, calculationsInProgress: 5, calculationsReceived: 3, proposalsSent: 3 },
+            { date: "20.08.2025", manager: "Денис Кича", crmLeads: 1, incomingCalls: 17, outgoingCalls: 2, presentationsSent: 7, targetClients: 2, calculationsInProgress: 2, calculationsReceived: 2, proposalsSent: 2 },
+            { date: "20.08.2025", manager: "Владисла Ісак", crmLeads: 1, incomingCalls: 24, outgoingCalls: 2, presentationsSent: 24, targetClients: 1, calculationsInProgress: 0, calculationsReceived: 0, proposalsSent: 0 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            populateDetailedTable();
+            calculateAndDisplayKPIs();
+            createCharts();
+        });
+
+        // Функция для заполнения детальной таблицы
+        function populateDetailedTable() {
+            const tableBody = document.getElementById('data-table');
+            tableBody.innerHTML = '';
+            tableData.forEach(row => {
+                const tr = `
+                    <tr class="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200">
+                        <td class="px-6 py-4 font-medium text-gray-900">${row.date}</td>
+                        <td class="px-6 py-4">${row.manager}</td>
+                        <td class="px-6 py-4 text-center">${row.crmLeads}</td>
+                        <td class="px-6 py-4 text-center">${row.incomingCalls}</td>
+                        <td class="px-6 py-4 text-center">${row.outgoingCalls}</td>
+                        <td class="px-6 py-4 text-center">${row.presentationsSent}</td>
+                        <td class="px-6 py-4 text-center">${row.targetClients}</td>
+                        <td class="px-6 py-4 text-center">${row.calculationsInProgress}</td>
+                        <td class="px-6 py-4 text-center">${row.calculationsReceived}</td>
+                        <td class="px-6 py-4 text-center">${row.proposalsSent}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += tr;
+            });
+        }
+
+        // Функция для расчетов и отображения всех метрик
+        function calculateAndDisplayKPIs() {
+            // --- Общие суммы ---
+            const totals = tableData.reduce((acc, row) => {
+                Object.keys(row).forEach(key => {
+                    if (typeof row[key] === 'number') {
+                        acc[key] = (acc[key] || 0) + row[key];
+                    }
+                });
+                return acc;
+            }, {});
+            
+            const totalCalls = totals.incomingCalls + totals.outgoingCalls;
+
+            // --- Отображение KPI карточек ---
+            document.getElementById('total-proposals').textContent = totals.proposalsSent;
+            document.getElementById('total-leads').textContent = totals.crmLeads;
+            document.getElementById('total-calls').textContent = totalCalls;
+
+            // --- Расчет и отображение конверсий ---
+            const conversionRate = totals.crmLeads > 0 ? ((totals.proposalsSent / totals.crmLeads) * 100).toFixed(1) : 0;
+            document.getElementById('conversion-leads-to-proposals').textContent = `${conversionRate}%`;
+
+            // --- Заполнение таблицы "Суммы всего" ---
+            const totalSummaryBody = document.getElementById('total-summary-table');
+            totalSummaryBody.innerHTML = '';
+            const totalMetrics = {
+                'Лиды CRM': totals.crmLeads,
+                'Входящие звонки': totals.incomingCalls,
+                'Исходящие звонки': totals.outgoingCalls,
+                'Всего звонков': totalCalls,
+                'Отправлено презентаций': totals.presentationsSent,
+                'Получено целевых клиентов': totals.targetClients,
+                'Отправлено КП': totals.proposalsSent
+            };
+            for (const [key, value] of Object.entries(totalMetrics)) {
+                const tr = `
+                    <tr class="border-b border-gray-200">
+                        <td class="px-6 py-3 font-medium">${key}</td>
+                        <td class="px-6 py-3 text-center font-semibold">${value}</td>
+                    </tr>
+                `;
+                totalSummaryBody.innerHTML += tr;
+            }
+
+            // --- Группировка и расчет сумм по дням ---
+            const dailySummary = tableData.reduce((acc, row) => {
+                if (!acc[row.date]) {
+                    acc[row.date] = { crmLeads: 0, calls: 0, proposalsSent: 0 };
+                }
+                acc[row.date].crmLeads += row.crmLeads;
+                acc[row.date].calls += row.incomingCalls + row.outgoingCalls;
+                acc[row.date].proposalsSent += row.proposalsSent;
+                return acc;
+            }, {});
+
+            // --- Заполнение таблицы "Суммы по дням" ---
+            const dailySummaryBody = document.getElementById('daily-summary-table');
+            dailySummaryBody.innerHTML = '';
+            // Сортируем даты для корректного отображения
+            const sortedDates = Object.keys(dailySummary).sort((a, b) => new Date(a.split('.').reverse().join('-')) - new Date(b.split('.').reverse().join('-')));
+            
+            sortedDates.forEach(date => {
+                const data = dailySummary[date];
+                const tr = `
+                    <tr class="border-b border-gray-200">
+                        <td class="px-6 py-3 font-medium">${date}</td>
+                        <td class="px-6 py-3 text-center">${data.crmLeads}</td>
+                        <td class="px-6 py-3 text-center">${data.calls}</td>
+                        <td class="px-6 py-3 text-center">${data.proposalsSent}</td>
+                    </tr>
+                `;
+                dailySummaryBody.innerHTML += tr;
+            });
+        }
+
+        // Функция для создания графиков
+        function createCharts() {
+            // --- Данные для графика по менеджерам ---
+            const managerPerformance = tableData.reduce((acc, row) => {
+                acc[row.manager] = (acc[row.manager] || 0) + row.proposalsSent;
+                return acc;
+            }, {});
+
+            const managerLabels = Object.keys(managerPerformance);
+            const managerData = Object.values(managerPerformance);
+
+            new Chart(document.getElementById('managerPerformanceChart'), {
+                type: 'bar',
+                data: {
+                    labels: managerLabels,
+                    datasets: [{
+                        label: 'Отправлено КП',
+                        data: managerData,
+                        backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                        borderColor: 'rgba(79, 70, 229, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // --- Данные для графика по дням ---
+            const dailyActivity = tableData.reduce((acc, row) => {
+                const totalCalls = row.incomingCalls + row.outgoingCalls;
+                acc[row.date] = (acc[row.date] || 0) + totalCalls;
+                return acc;
+            }, {});
+            
+            const sortedDailyLabels = Object.keys(dailyActivity).sort((a, b) => new Date(a.split('.').reverse().join('-')) - new Date(b.split('.').reverse().join('-')));
+            const dailyData = sortedDailyLabels.map(date => dailyActivity[date]);
+
+            new Chart(document.getElementById('dailyActivityChart'), {
+                type: 'line',
+                data: {
+                    labels: sortedDailyLabels,
+                    datasets: [{
+                        label: 'Всего звонков',
+                        data: dailyData,
+                        fill: true,
+                        backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                        borderColor: 'rgba(2, 132, 199, 1)',
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
